@@ -9,15 +9,15 @@
 #include <max6675.h>
 
 
-#define DS1307_ADDRESS 0x68
+#define DS1307_ADDRESS 0x68 // define o endereço do DS1307 como hex68
 
-MAX6675 termopar(10,11,12);
+MAX6675 termopar(10,11,12); // instancia um objeto MAX6675 com os pinos de comunicação 10 11 12
 
 SoftwareSerial bluetoothSerial(9, 8); // RX , TX
 
 // *************** Declaração das variáveis globais *********************
 byte zero = 0x00;  
-int menu = 0;
+byte menu = 4;
 volatile byte estado = HIGH;
 volatile bool alarme_on = false; // habilita os alarmes somente quando um dos alarmes for setado pelo celular
 String dado; // string para enviar e receber dados seriais (via bluetooth tmb)
@@ -56,7 +56,7 @@ bool carro_ligado = true;
 int rpm = 0;
 int rpm_pulso = 1;
 int rpm_tmp = 1000;  //tempo em mS
-int revolution  = 0;
+volatile byte revolution  = 0;
 int rpm_milhar  = 0;
 int rpm_centena = 0;
 int rpm_dezena  = 0;
@@ -226,7 +226,7 @@ void setup()
 
   // Configuração das interrupções
   attachInterrupt(digitalPinToInterrupt(2),changeScreen,LOW);
-  attachInterrupt(digitalPinToInterrupt(3),RPM,FALLING);
+  attachInterrupt(digitalPinToInterrupt(3),RPM,LOW);
 
   lcd.print("Carregando...");
   leSensoresTemperatura();
@@ -241,7 +241,7 @@ void setup()
 
 void loop(){
 
-   carregaDataHora();
+ carregaDataHora();
    
    if(change==true) {
     lcd.clear();
@@ -287,19 +287,20 @@ void loop(){
     verificaIgnicao();
 
     // Leitura da tensão da bateria   
-    if(timer_ler_tensao >= 2){
+    if(timer_ler_tensao >= 1){
       leTensaoBateria();
       timer_ler_tensao = 0;
     }   
 
-    if(timer_ler_temperatura >=7){
+    if(timer_ler_temperatura >=3){
       leSensoresTemperatura();   
       timer_ler_temperatura = 0;  
     }
   
-    if(tempo_temp_motor >= 15){
+    if(tempo_temp_motor >= 5){
       temp_motor = termopar.readCelsius();    
-      delay(1000);       
+    //  delay(1000);
+      monitoraTemperaturaMotor();       
       tempo_temp_motor = 0;
     }
 
@@ -330,16 +331,16 @@ void loop(){
             timer_envia_dados_bluetooth = 0;          
          }
          
-    monitoraTemperaturaMotor();
+    
     monitoraTensaoBateria();
 }
 
 
 // ************************* Funções de Interrupções ***************************** // 
 
-ISR(TIMER1_OVF_vect) //interrupção do TIMER1 
+ISR(TIMER1_OVF_vect) //Função de interrupção do TIMER1 
 {
-  TCNT1 = 0xC2F7; // Renicia TIMER
+  TCNT1 = 0xC2F7; // Renicia TIMER com hexC2F7 = 11511
   
   timer1_segundos++;    
   tempo_temp_motor++;
@@ -732,17 +733,20 @@ void mostraRPM(){
   imprimeNumeroGrande(rpm_unidade,9); 
  
   
-     
-  desativaInterrupcoes(); // Desativa as interrupções para poder realizar os calculos de forma correta  
   delay(rpm_tmp);
-  rpm = (int)((revolution*(1000/rpm_tmp)*60)*(1/rpm_pulso)); 
- // rpm = ((10*1000/(millis() - timeold)*revolution)/rpm_pulso);
- // timeold = millis();
-  separaAlgarismos(rpm, &rpm_milhar, &rpm_centena, &rpm_dezena, &rpm_unidade);  
-  ativaInterrupcoes(); // ativa novamente as interrupções
+     desativaInterrupcoes(); // Desativa as interrupções para poder realizar os calculos de forma correta  
+     rpm = (int)((revolution*(1000/rpm_tmp)*60)*(1/rpm_pulso)); 
+ //    rpm = ((10*1000/rpm_pulso)/(millis() - timeold)*revolution);
+     
+ //    timeold = millis();
+     
+     separaAlgarismos(rpm, &rpm_milhar, &rpm_centena, &rpm_dezena, &rpm_unidade);
+     revolution = 0;
+     rpm = 0;    
+       
+     ativaInterrupcoes(); // ativa novamente as interrupções     
 
-   revolution = 0;
-   rpm = 0;  
+  
 }
 
 

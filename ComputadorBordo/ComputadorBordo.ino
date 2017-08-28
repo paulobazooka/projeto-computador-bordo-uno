@@ -1,6 +1,6 @@
 // @autor Paulo Sérgio do Nascimento
-// @Julho de 2017
-// @Relógio - Calendário Fiat Uno Fire 2001/2002
+// @inicio - Julho de 2017
+// @Mini computador de Bordo
 
 #include <LiquidCrystal_I2C.h> // Bliblioteca para LCD I2C
 #include <SoftwareSerial.h>
@@ -11,13 +11,13 @@
 
 #define DS1307_ADDRESS 0x68 // define o endereço do DS1307 como hex68
 
-MAX6675 termopar(10,11,12); // instancia um objeto MAX6675 com os pinos de comunicação 10 11 12
+MAX6675 termopar(12,11,10);  // (CLK, CS, SO) instancia um objeto MAX6675 com os pinos de comunicação 10 11 12
 
-SoftwareSerial bluetoothSerial(9, 8); // RX , TX
+SoftwareSerial bluetoothSerial(8, 9); // RX , TX
 
 // *************** Declaração das variáveis globais *********************
 byte zero = 0x00;  
-byte menu = 4;
+byte menu = 0;
 volatile byte estado = HIGH;
 volatile bool alarme_on = false; // habilita os alarmes somente quando um dos alarmes for setado pelo celular
 String dado; // string para enviar e receber dados seriais (via bluetooth tmb)
@@ -218,11 +218,11 @@ void setup()
   lcd.clear();
   
   // Configuração dos pinos 
-  pinMode(2, INPUT_PULLUP); 
-  pinMode(6, INPUT_PULLUP);
-  pinMode(3, INPUT_PULLUP);
-  pinMode(4, OUTPUT);
-  pinMode(7, OUTPUT);
+  pinMode(2, INPUT_PULLUP);  // botão menu 
+  pinMode(3, INPUT_PULLUP);  // RPM
+  pinMode(4, OUTPUT);        // acionamento do auto Reset
+  pinMode(6, INPUT);         // ignição
+  pinMode(7, OUTPUT);        // liga/desliga bluetoot
 
   // Configuração das interrupções
   attachInterrupt(digitalPinToInterrupt(2),changeScreen,LOW);
@@ -313,26 +313,23 @@ void loop(){
     }
 
     
-    if(timer_envia_dados_bluetooth == 1){
-      dado = "T"; dado.concat(leitura_tensao);
+    if(timer_envia_dados_bluetooth == 5){
+      dado = "!"; 
+      dado.concat(leitura_tensao);
+      dado.concat("@");
+      dado.concat(temp);
+      dado.concat("#");
+      dado.concat(temp_motor);
+      dado.concat("$");
+      dado.concat(rpm);
+      dado.concat("%");
+      
       bluetoothSerial.print(dado); 
-      timer_envia_dados_bluetooth = 2;
+      timer_envia_dados_bluetooth = 0;
     }
-    else
-      if(timer_envia_dados_bluetooth == 6){
-        dado = "t"; dado.concat(temp);
-        bluetoothSerial.print(dado);
-        timer_envia_dados_bluetooth = 7;
-      }
-      else
-         if(timer_envia_dados_bluetooth >= 10){          
-            dado = "M"; dado.concat(temp_motor);
-            bluetoothSerial.print(dado);
-            timer_envia_dados_bluetooth = 0;          
-         }
-         
-    
+   
     monitoraTensaoBateria();
+    
 }
 
 
@@ -395,7 +392,7 @@ void adjustBluetooth() {
   
   if(bluetoothSerial.available() > 0){
      dado = bluetoothSerial.readString();
-     if(dado.substring(0,5) == "julia"){        
+     if(dado.substring(0,5) == "ajust"){        
       
          lcd.clear();
          lcd.print("Ajuste Hora/Data");

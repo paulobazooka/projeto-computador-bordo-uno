@@ -7,6 +7,7 @@
 #include <Wire.h>
 #include <SPI.h>
 #include <max6675.h>
+#include "numeros_grandes.h"
 
 
 #define DS1307_ADDRESS 0x68 // define o endereço do DS1307 como hex68
@@ -49,7 +50,7 @@ byte TIMER_LEITURA_TENSAO = 0;
 byte TIMER_ENVIAR_DADOS_BLUETOOTH = 0;
 bool dez_SEGUNDOSundos = false;
 bool backlight = true;
-bool change = false;
+bool change = true;
 bool carro_ligado = true;
 
 //  Variveis globais de RPM
@@ -241,14 +242,20 @@ void setup()
 
 void loop(){
 
- carregaDataHora();
+ 
    
    if(change==true) {
     lcd.clear();
     change = false;
    }
 
-    if(menu==0) {     
+    if(menu==0) {
+     
+      if(TIMER_LEITURA_TEMPERATURA >=3){
+      leSensoresTemperatura();   
+      TIMER_LEITURA_TEMPERATURA = 0;  
+      }
+      carregaDataHora();     
       mostraRelogio();     
     }
     else
@@ -256,11 +263,18 @@ void loop(){
         mostraTensaoTemperatura();        
       }
       else
-        if(menu==2) {       
+        if(menu==2) {   
+          carregaDataHora();    
           mostraRelogioGrande();        
         }
         else
-          if(menu==3){         
+          if(menu==3){
+          
+            if(TIMER_LEITURA_TEMPERATURA >=3){
+               leSensoresTemperatura();   
+               TIMER_LEITURA_TEMPERATURA = 0;  
+            }         
+            
             mostraTemperatura();         
           }
              else
@@ -292,10 +306,7 @@ void loop(){
       TIMER_LEITURA_TENSAO = 0;
     }   
 
-    if(TIMER_LEITURA_TEMPERATURA >=3){
-      leSensoresTemperatura();   
-      TIMER_LEITURA_TEMPERATURA = 0;  
-    }
+    
   
     if(tempo_temp_motor >= 5){
       temp_motor = termopar.readCelsius();    
@@ -961,11 +972,11 @@ void leSensoresTemperatura(){
     desativaInterrupcoes();
  
     for(byte i=0; i<15; i++){
-       temperatura = temperatura + analogRead(A1) * 0.48875855; // 0.48875855 = ((5volts/1023resolução)*100)
+       temperatura = temperatura + (analogRead(A1) * 0.48875855); // 0.48875855 = ((5volts/1023resolução)*100)
        delay(5);
     }
     for(byte i=0; i<15; i++){
-       temperatura2 = temperatura2 + analogRead(A2) * 0.48875855; // 0.48875855 = ((5volts/1023resolução)*100)
+       temperatura2 = temperatura2 + (analogRead(A2) * 0.48875855); // 0.48875855 = ((5volts/1023resolução)*100)
        delay(5);
     }
    

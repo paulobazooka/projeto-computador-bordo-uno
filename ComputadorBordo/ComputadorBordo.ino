@@ -42,12 +42,12 @@ byte  tempo_temp_motor = 0;
 
 // Variáveis de contagem de tempo
 volatile byte state = LOW;
-byte timer1_segundos = 0;
-byte seg = 0;
-byte timer_ler_temperatura = 0;
-byte timer_ler_tensao = 0;
-byte timer_envia_dados_bluetooth = 0;
-bool dez_segundos = false;
+byte TIMER_SEGUNDOSUNDOS = 0;
+byte SEGUNDOS = 0;
+byte TIMER_LEITURA_TEMPERATURA = 0;
+byte TIMER_LEITURA_TENSAO = 0;
+byte TIMER_ENVIAR_DADOS_BLUETOOTH = 0;
+bool dez_SEGUNDOSundos = false;
 bool backlight = true;
 bool change = false;
 bool carro_ligado = true;
@@ -64,7 +64,7 @@ int rpm_unidade = 0;
 unsigned long timeold = 0;
 
 // Variáveis de data e hora
-int segundos = 0;
+int SEGUNDOSundos = 0;
 int minutos = 0;
 int hora = 0; 
 int diadasemana = 0; 
@@ -168,7 +168,7 @@ LiquidCrystal_I2C lcd(0x27,2,1,0,4,5,6,7,3, POSITIVE);
 void changeScreen();
 void imprimeNumeroGrande(int number, byte pos);
 void adjustBluetooth();
-void selecionaDataeHora(byte seg, byte mi, byte horas, byte dia_semana, byte dia, byte mes, byte ano);
+void selecionaDataeHora(byte SEGUNDOS, byte mi, byte horas, byte dia_semana, byte dia, byte mes, byte ano);
 byte ConverteParaBCD(byte val);
 byte ConverteparaDecimal(byte val);
 void mostraRelogio();
@@ -192,7 +192,7 @@ void setup()
   TCCR1B = 0;                        //limpa registrador
   TCCR1B |= (1<<CS10)|(1 << CS12);   // configura prescaler para 1024: CS12 = 1 e CS10 = 1
  
-  TCNT1 = 0xC2F7;                    // incia timer com valor para que estouro ocorra em 1 segundo
+  TCNT1 = 0xC2F7;                    // incia timer com valor para que estouro ocorra em 1 SEGUNDOSundo
                                      // 65536-(16MHz/1024/1Hz) = 49911 = 0xC2F7
   
   TIMSK1 |= (1 << TOIE1);           // habilita a interrupção do TIMER1
@@ -287,14 +287,14 @@ void loop(){
     verificaIgnicao();
 
     // Leitura da tensão da bateria   
-    if(timer_ler_tensao >= 1){
+    if(TIMER_LEITURA_TENSAO >= 1){
       leTensaoBateria();
-      timer_ler_tensao = 0;
+      TIMER_LEITURA_TENSAO = 0;
     }   
 
-    if(timer_ler_temperatura >=3){
+    if(TIMER_LEITURA_TEMPERATURA >=3){
       leSensoresTemperatura();   
-      timer_ler_temperatura = 0;  
+      TIMER_LEITURA_TEMPERATURA = 0;  
     }
   
     if(tempo_temp_motor >= 5){
@@ -313,8 +313,8 @@ void loop(){
     }
 
     
-    if(timer_envia_dados_bluetooth == 5){
-      dado = "!"; 
+    if(TIMER_ENVIAR_DADOS_BLUETOOTH >= 5){
+  /*    dado = "!"; 
       dado.concat(leitura_tensao);
       dado.concat("@");
       dado.concat(temp);
@@ -324,8 +324,8 @@ void loop(){
       dado.concat(rpm);
       dado.concat("%");
       
-      bluetoothSerial.print(dado); 
-      timer_envia_dados_bluetooth = 0;
+      bluetoothSerial.print(dado); */
+      TIMER_ENVIAR_DADOS_BLUETOOTH = 0;
     }
    
     monitoraTensaoBateria();
@@ -339,20 +339,20 @@ ISR(TIMER1_OVF_vect) //Função de interrupção do TIMER1
 {
   TCNT1 = 0xC2F7; // Renicia TIMER com hexC2F7 = 11511
   
-  timer1_segundos++;    
+  TIMER_SEGUNDOSUNDOS++;    
   tempo_temp_motor++;
-  timer_ler_temperatura++;
-  seg++;
-  timer_ler_tensao++;
-  timer_envia_dados_bluetooth++;
+  TIMER_LEITURA_TEMPERATURA++;
+  SEGUNDOS++;
+  TIMER_LEITURA_TENSAO++;
+  TIMER_ENVIAR_DADOS_BLUETOOTH++;
 
   estado = !estado;
   
-  if(timer_envia_dados_bluetooth >= 20) timer_envia_dados_bluetooth = 0;
-  if(timer_ler_tensao > 20) timer_ler_tensao = 0;
-  if(timer_ler_temperatura > 20) timer_ler_temperatura = 0;
-  if(seg > 10) seg  = 0;  
-  if(timer1_segundos > 10) timer1_segundos  = 0;
+  if(TIMER_ENVIAR_DADOS_BLUETOOTH >= 20) TIMER_ENVIAR_DADOS_BLUETOOTH = 0;
+  if(TIMER_LEITURA_TENSAO > 20) TIMER_LEITURA_TENSAO = 0;
+  if(TIMER_LEITURA_TEMPERATURA > 20) TIMER_LEITURA_TEMPERATURA = 0;
+  if(SEGUNDOS > 10) SEGUNDOS  = 0;  
+  if(TIMER_SEGUNDOSUNDOS > 10) TIMER_SEGUNDOSUNDOS  = 0;
   if(tempo_temp_motor > 20) tempo_temp_motor = 0;
 }
 
@@ -404,9 +404,9 @@ void adjustBluetooth() {
          diadasemana--;
          hora = stringToInt(dado.substring(12, 14));     
          minutos = stringToInt(dado.substring(14, 16));  
-         segundos = stringToInt(dado.substring(16, 18));     
+         SEGUNDOSundos = stringToInt(dado.substring(16, 18));     
 
-         selecionaDataeHora(segundos, minutos, hora, diadasemana, diadomes, mes, ano);
+         selecionaDataeHora(SEGUNDOSundos, minutos, hora, diadasemana, diadomes, mes, ano);
          
          delay(700);
          lcd.clear(); 
@@ -471,15 +471,15 @@ void adjustBluetooth() {
 
 // ****************** Função para ligar/desligar o backlight do display ************************   
 void verificaIgnicao(){    
-    // Se a ignição estiver desligada, flag dez_segundos em zero e o carro estiver ligado...
-    if((digitalRead(6) == LOW) && (!dez_segundos) && (carro_ligado)){
+    // Se a ignição estiver desligada, flag dez_SEGUNDOSundos em zero e o carro estiver ligado...
+    if((digitalRead(6) == LOW) && (!dez_SEGUNDOSundos) && (carro_ligado)){
       Serial.println("Ignição = OFF");
-      seg = 0;
-      dez_segundos = true;
+      SEGUNDOS = 0;
+      dez_SEGUNDOSundos = true;
     }
-    // Se a flag dez_segundos estiver setada e o tempo decorrido passar
-    if((dez_segundos) && (seg > 9)){
-      dez_segundos = false;
+    // Se a flag dez_SEGUNDOSundos estiver setada e o tempo decorrido passar
+    if((dez_SEGUNDOSundos) && (SEGUNDOS > 9)){
+      dez_SEGUNDOSundos = false;
        if((digitalRead(6) == LOW)){ // Se passado o tempo a ignição continua desligada
         Serial.println("Carro Desligado");
         lcd.setBacklight(LOW);
@@ -505,7 +505,7 @@ void carregaDataHora(){
   Wire.write(zero);
   Wire.endTransmission();
   Wire.requestFrom(DS1307_ADDRESS, 7);
-  segundos = ConverteparaDecimal(Wire.read());
+  SEGUNDOSundos = ConverteparaDecimal(Wire.read());
   minutos = ConverteparaDecimal(Wire.read());
   hora = ConverteparaDecimal(Wire.read() & 0b111111); 
   diadasemana = ConverteparaDecimal(Wire.read()); 
@@ -542,7 +542,7 @@ void saudacao(){
     lcd.setCursor(0,0);
     lcd.print("Use sempre cinto");
     lcd.setCursor(2,1);
-    lcd.print("de seguranca!");
+    lcd.print("de SEGUNDOSuranca!");
     delay(2300);
     lcd.clear();
     
@@ -550,13 +550,13 @@ void saudacao(){
 }
 
 // ************************** Funções do Relógio ******************************
-void selecionaDataeHora(byte seg, byte mi, byte horas, byte dia_semana, byte dia, byte mes, byte ano){   //Seta a data e a hora do DS1307
+void selecionaDataeHora(byte SEGUNDOS, byte mi, byte horas, byte dia_semana, byte dia, byte mes, byte ano){   //Seta a data e a hora do DS1307
   Wire.beginTransmission(DS1307_ADDRESS);
   Wire.write(zero); //Stop no CI para que o mesmo possa receber os dados
 
   //As linhas abaixo escrevem no CI os valores de 
   //data e hora que foram colocados nas variaveis acima
-  Wire.write(ConverteParaBCD(seg));
+  Wire.write(ConverteParaBCD(SEGUNDOS));
   Wire.write(ConverteParaBCD(mi));
   Wire.write(ConverteParaBCD(horas));
   Wire.write(ConverteParaBCD(dia_semana));
@@ -587,7 +587,7 @@ void mostraRelogio()
   switch(diadasemana){
       case 0: lcd.print("Domingo");
       break;
-      case 1: lcd.print("Segunda");
+      case 1: lcd.print("SEGUNDOSunda");
       break;
       case 2: lcd.print("Terca  ");
       break;
@@ -640,8 +640,8 @@ void mostraRelogio()
   if(minutos<10) lcd.print("0");
     lcd.print(minutos);
     lcd.print(":");
-  if(segundos<10) lcd.print("0"); 
-    lcd.print(segundos);
+  if(SEGUNDOSundos<10) lcd.print("0"); 
+    lcd.print(SEGUNDOSundos);
 
     ativaInterrupcoes();
 }
@@ -668,8 +668,8 @@ void mostraRelogioGrande(){
 
   lcd.setCursor(13,1);
   lcd.print(":");
-  if(segundos<10) lcd.print("0"); 
-  lcd.print(segundos);
+  if(SEGUNDOSundos<10) lcd.print("0"); 
+  lcd.print(SEGUNDOSundos);
 }
 
 int potencia(int base, int expoente){

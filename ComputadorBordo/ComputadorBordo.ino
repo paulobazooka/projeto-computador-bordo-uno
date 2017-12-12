@@ -7,162 +7,24 @@
 #include <Wire.h>
 #include <SPI.h>
 #include <max6675.h>
+
+// inlcui os arquivos auxiliares
 #include "numeros_grandes.h"
+#include "variaveis_globais.h"
+#include "ignicao.h"
 
+// define o endereço do DS1307 como hex68
+#define DS1307_ADDRESS 0x68 
 
-#define DS1307_ADDRESS 0x68 // define o endereço do DS1307 como hex68
+// (CLK, CS, SO) instancia um objeto MAX6675 com os pinos de comunicação 10 11 12
+MAX6675 termopar(12,11,10);  
 
-MAX6675 termopar(12,11,10);  // (CLK, CS, SO) instancia um objeto MAX6675 com os pinos de comunicação 10 11 12
+// Define software serial os pinos 8 e 9 - RX, TX
+SoftwareSerial bluetoothSerial(8, 9);
 
-SoftwareSerial bluetoothSerial(8, 9); // RX , TX
-
-// *************** Declaração das variáveis globais *********************
-byte zero = 0x00;  
-byte menu = 0;
-volatile byte estado = HIGH;
-volatile bool alarme_on = false; // habilita os alarmes somente quando um dos alarmes for setado pelo celular
-String dado; // string para enviar e receber dados seriais (via bluetooth tmb)
-
-// Variáveis de Tensão
-float leitura_tensao =  0;
-float tensao_adjust  = 1;
-float tensao_entrada = 21.213;
-float alarme_tensao  =  0;
-bool  alarme_bateria = false;
-
-// Variáveis de Temperatura
-float temperatura  = 0;
-float temperatura2 = 0;
-float temp = 0; 
-
-// Variáveis de Temperatura do Motor
-float temp_motor  = 0;
-float alarme_temp = 500;
-bool  alarme_motor = false;
-byte  tempo_temp_motor = 0;
-
-// Variáveis de contagem de tempo
-volatile byte state = LOW;
-byte TIMER_SEGUNDOSUNDOS = 0;
-byte SEGUNDOS = 0;
-byte TIMER_LEITURA_TEMPERATURA = 0;
-byte TIMER_LEITURA_TENSAO = 0;
-byte TIMER_ENVIAR_DADOS_BLUETOOTH = 0;
-bool dez_SEGUNDOSundos = false;
-bool backlight = true;
-bool change = true;
-bool carro_ligado = true;
-
-//  Variveis globais de RPM
-int rpm = 0;
-int rpm_pulso = 1;
-int rpm_tmp = 1000;  //tempo em mS
-volatile byte revolution  = 0;
-int rpm_milhar  = 0;
-int rpm_centena = 0;
-int rpm_dezena  = 0;
-int rpm_unidade = 0;
-unsigned long timeold = 0;
-
-// Variáveis de data e hora
-int SEGUNDOSundos = 0;
-int minutos = 0;
-int hora = 0; 
-int diadasemana = 0; 
-int diadomes = 0;
-int mes = 0;
-int ano = 0;
-
-  
-byte E[8] = {
-  B00111,
-  B01111,
-  B01111,
-  B01111,
-  B01111,
-  B01111,
-  B01111,
-  B00111
-};
-byte D[8] = {
-  B11100,
-  B11110,
-  B11110,
-  B11110,
-  B11110,
-  B11110,
-  B11110,
-  B11100
-};
-
-byte S[8] = {
-  B11111,
-  B11111,
-  B00000,
-  B00000,
-  B00000,
-  B00000,
-  B00000,
-  B00000
-};
-
-byte I[8] = {
-  B00000,
-  B00000,
-  B00000,
-  B00000,
-  B00000,
-  B00000,
-  B11111,
-  B11111
-};  
-
-byte C[8] = {
-  B00000,
-  B00000,
-  B00000,
-  B00000,
-  B00000,
-  B00000,
-  B01111,
-  B00111
-};
-
-byte C2[8] = {
-  B11111,
-  B11111,
-  B00000,
-  B00000,
-  B00000,
-  B00000,
-  B11111,
-  B11111
-};
-
-
-byte C3[8] = {
-  B00011,
-  B00111,
-  B00000,
-  B00000,
-  B00000,
-  B00000,
-  B00011,
-  B00111
-};
-
-byte C4[8] = {
-  B11000,
-  B11100,
-  B00000,
-  B00000,
-  B00000,
-  B00000,
-  B11000,
-  B11100
-};
-
+ // inicializa o display LCD I2C
 LiquidCrystal_I2C lcd(0x27,2,1,0,4,5,6,7,3, POSITIVE);
+
 
 
 // ********** Escopo das funções **********
@@ -226,13 +88,12 @@ void setup()
   pinMode(7, OUTPUT);        // liga/desliga bluetoot
 
   // Configuração das interrupções
-  attachInterrupt(digitalPinToInterrupt(2),changeScreen,LOW);
   attachInterrupt(digitalPinToInterrupt(3),RPM,LOW);
 
   lcd.print("Carregando...");
-  leSensoresTemperatura();
+ /* leSensoresTemperatura();
   leTensaoBateria();
-  temp_motor = termopar.readCelsius();    
+  temp_motor = termopar.readCelsius();   */ 
   delay(1500);
   lcd.clear();
 }
@@ -241,9 +102,7 @@ void setup()
 
 
 void loop(){
-
- 
-   
+  
    if(change==true) {
     lcd.clear();
     change = false;
@@ -308,11 +167,11 @@ void loop(){
 
     
   
-    if(tempo_temp_motor >= 5){
+    if(TEMPO_LEITURA_TEMPERATURA_MOTOR >= 5){
       temp_motor = termopar.readCelsius();    
     //  delay(1000);
       monitoraTemperaturaMotor();       
-      tempo_temp_motor = 0;
+      TEMPO_LEITURA_TEMPERATURA_MOTOR = 0;
     }
 
     if((estado == LOW) && ((alarme_motor == false) || (alarme_bateria == false)) && (carro_ligado)) {
@@ -341,6 +200,8 @@ void loop(){
    
     monitoraTensaoBateria();
     
+    if(!digitalRead(2)) changeScreen();
+    
 }
 
 
@@ -351,7 +212,7 @@ ISR(TIMER1_OVF_vect) //Função de interrupção do TIMER1
   TCNT1 = 0xC2F7; // Renicia TIMER com hexC2F7 = 11511
   
   TIMER_SEGUNDOSUNDOS++;    
-  tempo_temp_motor++;
+  TEMPO_LEITURA_TEMPERATURA_MOTOR++;
   TIMER_LEITURA_TEMPERATURA++;
   SEGUNDOS++;
   TIMER_LEITURA_TENSAO++;
@@ -364,16 +225,7 @@ ISR(TIMER1_OVF_vect) //Função de interrupção do TIMER1
   if(TIMER_LEITURA_TEMPERATURA > 20) TIMER_LEITURA_TEMPERATURA = 0;
   if(SEGUNDOS > 10) SEGUNDOS  = 0;  
   if(TIMER_SEGUNDOSUNDOS > 10) TIMER_SEGUNDOSUNDOS  = 0;
-  if(tempo_temp_motor > 20) tempo_temp_motor = 0;
-}
-
-
-   
-void changeScreen(){  // Função que muda de tela de acordo com a interrupção do pino 2
- menu++;
- if(menu>5) menu=0;
- change = true;
- // delay(250);
+  if(TEMPO_LEITURA_TEMPERATURA_MOTOR > 10) TEMPO_LEITURA_TEMPERATURA_MOTOR = 0;
 }
 
 
@@ -391,7 +243,6 @@ void desativaInterrupcoes(){
 }
 
 void ativaInterrupcoes(){
-  attachInterrupt(digitalPinToInterrupt(2),changeScreen,FALLING);
   attachInterrupt(digitalPinToInterrupt(3),RPM,FALLING);
 }
 
@@ -553,7 +404,7 @@ void saudacao(){
     lcd.setCursor(0,0);
     lcd.print("Use sempre cinto");
     lcd.setCursor(2,1);
-    lcd.print("de SEGUNDOSuranca!");
+    lcd.print("de seguranca!");
     delay(2300);
     lcd.clear();
     
@@ -702,9 +553,9 @@ int stringToInt(String minhaString) {
   }
   return numero;
 }
-
-
 // ******************************* Fim das Funções do Relógio ****************************************
+
+
 void mostraTemperatura(){
   
   desativaInterrupcoes();

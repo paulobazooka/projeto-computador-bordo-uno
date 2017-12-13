@@ -1,4 +1,4 @@
-// @autor Paulo Sérgio do Nascimento
+ // @autor Paulo Sérgio do Nascimento
 // @inicio - Julho de 2017
 // @Mini computador de Bordo
 
@@ -48,8 +48,9 @@ void verificaIgnicao();
 
 void setup()
 { 
-  digitalWrite(4, HIGH);
-  digitalWrite(7, HIGH);
+
+   digitalWrite(4, HIGH); // pino de auto reset em nivel alto para inicializar o sistema. (LOW = reset)
+   
   // Configuração do timer1 
   TCCR1A = 0;                        //confira timer para operação normal pinos OC1A e OC1B desconectados
   TCCR1B = 0;                        //limpa registrador
@@ -86,6 +87,8 @@ void setup()
   pinMode(4, OUTPUT);        // acionamento do auto Reset
   pinMode(6, INPUT);         // ignição
   pinMode(7, OUTPUT);        // liga/desliga bluetoot
+ 
+  digitalWrite(7, HIGH); // liga bluetooh
 
   // Configuração das interrupções
   attachInterrupt(digitalPinToInterrupt(3),RPM,LOW);
